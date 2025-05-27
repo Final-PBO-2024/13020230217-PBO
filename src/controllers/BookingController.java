@@ -1,16 +1,17 @@
 package controllers;
 
 import models.Booking;
+import models.Schedule;
 import repositories.BookingRepository;
 import repositories.ScheduleRepository;
 
-import javax.swing.JOptionPane;
-import java.sql.SQLException;
-import java.time.LocalDateTime;
+import java.sql.Date;
+import java.sql.Time;
 import java.util.List;
-import models.Schedule;
+import java.util.stream.Collectors;
 
 public class BookingController {
+
     private BookingRepository bookingRepository;
     private ScheduleRepository scheduleRepository;
 
@@ -19,47 +20,43 @@ public class BookingController {
         this.scheduleRepository = new ScheduleRepository();
     }
 
-    public void createBooking(Booking booking) {
-        try {
-            bookingRepository.save(booking);
-            Schedule schedule = new Schedule();
-            schedule.setScheduleId(booking.getScheduleId());
-            schedule.setAvailable(false);
-            scheduleRepository.update(schedule);
-            JOptionPane.showMessageDialog(null, "Booking created successfully", "Success", JOptionPane.INFORMATION_MESSAGE);
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(null, "Error creating booking: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-        }
+    public List<Booking> getAllBookings(boolean includeDeleted) {
+        return bookingRepository.getAllBookings(includeDeleted);
     }
 
-    public void cancelBooking(int bookingId) {
-        try {
-            bookingRepository.updateStatus(bookingId, "cancelled");
-            JOptionPane.showMessageDialog(null, "Booking cancelled successfully", "Success", JOptionPane.INFORMATION_MESSAGE);
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(null, "Error cancelling booking: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-        }
+     public List<Booking> getBookingsByUserId(int userId, boolean includeDeleted) {
+        return bookingRepository.getBookingsByUserId(userId, includeDeleted);
+     }
+
+    public List<Schedule> getAvailableSchedules(int fieldId, Date bookingDate) {
+        // 1. Ambil semua jadwal aktif untuk lapangan tsb
+        List<Schedule> allSchedules = scheduleRepository.getSchedulesByFieldId(fieldId, false);
+
+        // 2. Ambil semua waktu yang sudah dibooking pada tanggal tsb
+        List<Time> bookedTimes = bookingRepository.getBookedTimes(fieldId, bookingDate);
+
+        // 3. Filter jadwal yang tersedia
+        return allSchedules.stream()
+                .filter(schedule -> !bookedTimes.contains(schedule.getStartTime()))
+                .collect(Collectors.toList());
     }
 
-    public List<Booking> getUserBookings(int userId) {
-        try {
-            return bookingRepository.findByUserId(userId);
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(null, "Error fetching bookings: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-            return null;
-        }
+    public boolean createBooking(Booking booking) {
+        return bookingRepository.addBooking(booking);
     }
 
-    public List<Booking> getAllBookings() {
-        try {
-            return bookingRepository.findAll();
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(null, "Error fetching bookings: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-            return null;
-        }
+    public boolean updateBookingStatus(int bookingId, String status) {
+        return bookingRepository.updateBookingStatus(bookingId, status);
     }
 
-    public void updateStatus(int bookingId, String confirmed) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    public boolean cancelBooking(int bookingId) {
+        return bookingRepository.updateBookingStatus(bookingId, "Cancelled");
+    }
+
+    public boolean softDeleteBooking(int bookingId) {
+        return bookingRepository.setBookingDeletedStatus(bookingId, true);
+    }
+     public boolean restoreBooking(int bookingId) {
+        return bookingRepository.setBookingDeletedStatus(bookingId, false);
     }
 }

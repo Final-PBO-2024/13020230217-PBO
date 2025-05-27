@@ -2,83 +2,103 @@ package repositories;
 
 import config.DatabaseConnection;
 import models.Field;
-
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import javax.swing.JOptionPane;
 
 public class FieldRepository {
-    public void save(Field field) throws SQLException {
-        String sql = "INSERT INTO fields (name, sport_type, capacity) VALUES (?, ?, ?)";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            stmt.setString(1, field.getName());
-            stmt.setString(2, field.getSportType());
-            stmt.setInt(3, field.getCapacity());
-            stmt.executeUpdate();
-            ResultSet rs = stmt.getGeneratedKeys();
-            if (rs.next()) {
-                field.setFieldId(rs.getInt(1));
-            }
-        }
-    }
 
-    public void update(Field field) throws SQLException {
-        String sql = "UPDATE fields SET name = ?, sport_type = ?, capacity = ? WHERE field_id = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, field.getName());
-            stmt.setString(2, field.getSportType());
-            stmt.setInt(3, field.getCapacity());
-            stmt.setInt(4, field.getFieldId());
-            stmt.executeUpdate();
-        }
-    }
-
-    public void delete(int fieldId) throws SQLException {
-        String sql = "UPDATE fields SET is_deleted = TRUE WHERE field_id = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, fieldId);
-            stmt.executeUpdate();
-        }
-    }
-
-    public List<Field> findAll() throws SQLException {
+    public List<Field> getAllFields(boolean includeDeleted) {
         List<Field> fields = new ArrayList<>();
-        String sql = "SELECT * FROM fields WHERE is_deleted = FALSE";
+        String sql = "SELECT * FROM fields";
+        if (!includeDeleted) {
+            sql += " WHERE is_deleted = FALSE";
+        }
+        sql += " ORDER BY field_id";
+
         try (Connection conn = DatabaseConnection.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
+
             while (rs.next()) {
-                Field field = new Field();
-                field.setFieldId(rs.getInt("field_id"));
-                field.setName(rs.getString("name"));
-                field.setSportType(rs.getString("sport_type"));
-                field.setCapacity(rs.getInt("capacity"));
-                field.setDeleted(rs.getBoolean("is_deleted"));
-                fields.add(field);
+                fields.add(mapResultSetToField(rs));
             }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Gagal mengambil data lapangan: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
         }
         return fields;
     }
 
-    public Field findById(int fieldId) throws SQLException {
-        String sql = "SELECT * FROM fields WHERE field_id = ? AND is_deleted = FALSE";
+     public Field getFieldById(int fieldId) {
+        String sql = "SELECT * FROM fields WHERE field_id = ?";
+        Field field = null;
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, fieldId);
-            ResultSet rs = stmt.executeQuery();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, fieldId);
+            ResultSet rs = pstmt.executeQuery();
             if (rs.next()) {
-                Field field = new Field();
-                field.setFieldId(rs.getInt("field_id"));
-                field.setName(rs.getString("name"));
-                field.setSportType(rs.getString("sport_type"));
-                field.setCapacity(rs.getInt("capacity"));
-                field.setDeleted(rs.getBoolean("is_deleted"));
-                return field;
+                field = mapResultSetToField(rs);
             }
-            return null;
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
+        return field;
+    }
+
+    public boolean addField(Field field) {
+        String sql = "INSERT INTO fields (name, type, price_per_hour) VALUES (?, ?, ?)";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, field.getName());
+            pstmt.setString(2, field.getType());
+            pstmt.setBigDecimal(3, field.getPricePerHour());
+            return pstmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Gagal menambah lapangan: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public boolean updateField(Field field) {
+        String sql = "UPDATE fields SET name = ?, type = ?, price_per_hour = ? WHERE field_id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, field.getName());
+            pstmt.setString(2, field.getType());
+            pstmt.setBigDecimal(3, field.getPricePerHour());
+            pstmt.setInt(4, field.getFieldId());
+            return pstmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+             JOptionPane.showMessageDialog(null, "Gagal update lapangan: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public boolean setFieldDeletedStatus(int fieldId, boolean isDeleted) {
+        String sql = "UPDATE fields SET is_deleted = ? WHERE field_id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setBoolean(1, isDeleted);
+            pstmt.setInt(2, fieldId);
+            return pstmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Gagal update status lapangan: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    private Field mapResultSetToField(ResultSet rs) throws SQLException {
+        Field field = new Field();
+        field.setFieldId(rs.getInt("field_id"));
+        field.setName(rs.getString("name"));
+        field.setType(rs.getString("type"));
+        field.setPricePerHour(rs.getBigDecimal("price_per_hour"));
+        field.setDeleted(rs.getBoolean("is_deleted"));
+        return field;
     }
 }

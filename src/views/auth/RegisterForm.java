@@ -1,130 +1,114 @@
 package views.auth;
 
 import controllers.AuthController;
-import models.User;
 
 import javax.swing.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.sql.SQLException;
+import java.awt.*;
 
 public class RegisterForm extends JFrame {
-    private JTextField txtName;
-    private JTextField txtUsername;
-    private JPasswordField txtPassword;
-    private JPasswordField txtConfirmPassword;
-    private JTextField txtEmail;
-    private JTextField txtPhone;
-    private JButton btnRegister;
-    private JButton btnBack;
+
+    private LoginForm loginForm; // Untuk kembali ke login form
+    private JTextField nameField, usernameField, emailField, phoneField;
+    private JPasswordField passwordField, confirmPasswordField;
+    private JButton registerButton, backButton;
     private AuthController authController;
 
-    public RegisterForm(AuthController authController) {
-        this.authController = authController;
-        setTitle("Register");
-        setSize(300, 300);
-        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+    public RegisterForm(LoginForm loginForm) {
+        this.loginForm = loginForm;
+        this.authController = new AuthController();
+        initComponents();
+        setTitle("Registrasi User Baru");
+        setSize(450, 400);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE); // Agar tidak exit aplikasi
         setLocationRelativeTo(null);
-        setLayout(null);
+        setResizable(false);
 
-        JLabel lblName = new JLabel("Name:");
-        lblName.setBounds(20, 20, 80, 25);
-        add(lblName);
-
-        txtName = new JTextField();
-        txtName.setBounds(100, 20, 160, 25);
-        add(txtName);
-
-        JLabel lblUsername = new JLabel("Username:");
-        lblUsername.setBounds(20, 50, 80, 25);
-        add(lblUsername);
-
-        txtUsername = new JTextField();
-        txtUsername.setBounds(100, 50, 160, 25);
-        add(txtUsername);
-
-        JLabel lblPassword = new JLabel("Password:");
-        lblPassword.setBounds(20, 80, 80, 25);
-        add(lblPassword);
-
-        txtPassword = new JPasswordField();
-        txtPassword.setBounds(100, 80, 160, 25);
-        add(txtPassword);
-
-        JLabel lblConfirmPassword = new JLabel("Confirm Password:");
-        lblConfirmPassword.setBounds(20, 110, 100, 25);
-        add(lblConfirmPassword);
-
-        txtConfirmPassword = new JPasswordField();
-        txtConfirmPassword.setBounds(100, 110, 160, 25);
-        add(txtConfirmPassword);
-
-        JLabel lblEmail = new JLabel("Email:");
-        lblEmail.setBounds(20, 140, 80, 25);
-        add(lblEmail);
-
-        txtEmail = new JTextField();
-        txtEmail.setBounds(100, 140, 160, 25);
-        add(txtEmail);
-
-        JLabel lblPhone = new JLabel("Phone:");
-        lblPhone.setBounds(20, 170, 80, 25);
-        add(lblPhone);
-
-        txtPhone = new JTextField();
-        txtPhone.setBounds(100, 170, 160, 25);
-        add(txtPhone);
-
-        btnRegister = new JButton("Register");
-        btnRegister.setBounds(20, 210, 100, 25);
-        add(btnRegister);
-
-        btnBack = new JButton("Back");
-        btnBack.setBounds(130, 210, 100, 25);
-        add(btnBack);
-
-        btnRegister.addActionListener(new ActionListener() {
+        // Menangani penutupan window
+        addWindowListener(new java.awt.event.WindowAdapter() {
             @Override
-            public void actionPerformed(ActionEvent e) {
-                String name = txtName.getText().trim();
-                String username = txtUsername.getText().trim();
-                String password = new String(txtPassword.getPassword()).trim();
-                String confirmPassword = new String(txtConfirmPassword.getPassword()).trim();
-                String email = txtEmail.getText().trim();
-                String phone = txtPhone.getText().trim();
-
-                if (name.isEmpty() || username.isEmpty() || password.isEmpty() || confirmPassword.isEmpty() || email.isEmpty() || phone.isEmpty()) {
-                    JOptionPane.showMessageDialog(RegisterForm.this, "All fields are required.", "Registration Failed", JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
-
-                if (!password.equals(confirmPassword)) {
-                    JOptionPane.showMessageDialog(RegisterForm.this, "Passwords do not match.", "Registration Failed", JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
-
-                User user = new User();
-                user.setName(name);
-                user.setUsername(username);
-                user.setPassword(password);
-                user.setEmail(email);
-                user.setPhone(phone);
-                user.setRole("user");
-
-                if (authController.register(user, confirmPassword)) {
-                    JOptionPane.showMessageDialog(RegisterForm.this, "Registration successful! Please log in.", "Success", JOptionPane.INFORMATION_MESSAGE);
-                    dispose();
-                    new LoginForm(authController).setVisible(true); // Pass the existing authController
-                }
+            public void windowClosing(java.awt.event.WindowEvent windowEvent) {
+                loginForm.setVisible(true); // Tampilkan lagi login form
             }
         });
+    }
 
-        btnBack.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                dispose();
-                new LoginForm(authController).setVisible(true); // Pass the existing authController
-            }
+    private void initComponents() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        JLabel titleLabel = new JLabel("Form Registrasi", SwingConstants.CENTER);
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 18));
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2; panel.add(titleLabel, gbc);
+
+        gbc.gridwidth = 1; // Reset
+        gbc.gridy = 1; gbc.gridx = 0; panel.add(new JLabel("Nama Lengkap:"), gbc);
+        gbc.gridx = 1; nameField = new JTextField(20); panel.add(nameField, gbc);
+
+        gbc.gridy = 2; gbc.gridx = 0; panel.add(new JLabel("Username:"), gbc);
+        gbc.gridx = 1; usernameField = new JTextField(20); panel.add(usernameField, gbc);
+
+        gbc.gridy = 3; gbc.gridx = 0; panel.add(new JLabel("Password:"), gbc);
+        gbc.gridx = 1; passwordField = new JPasswordField(20); panel.add(passwordField, gbc);
+
+        gbc.gridy = 4; gbc.gridx = 0; panel.add(new JLabel("Konfirmasi Password:"), gbc);
+        gbc.gridx = 1; confirmPasswordField = new JPasswordField(20); panel.add(confirmPasswordField, gbc);
+
+        gbc.gridy = 5; gbc.gridx = 0; panel.add(new JLabel("Email:"), gbc);
+        gbc.gridx = 1; emailField = new JTextField(20); panel.add(emailField, gbc);
+
+        gbc.gridy = 6; gbc.gridx = 0; panel.add(new JLabel("No. Telepon:"), gbc);
+        gbc.gridx = 1; phoneField = new JTextField(20); panel.add(phoneField, gbc);
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+        registerButton = new JButton("Register");
+        backButton = new JButton("Kembali ke Login");
+        buttonPanel.add(registerButton);
+        buttonPanel.add(backButton);
+
+        gbc.gridy = 7; gbc.gridx = 0; gbc.gridwidth = 2; gbc.fill = GridBagConstraints.NONE;
+        gbc.anchor = GridBagConstraints.CENTER; panel.add(buttonPanel, gbc);
+
+        add(panel);
+
+        // Action Listeners
+        registerButton.addActionListener(e -> performRegister());
+        backButton.addActionListener(e -> {
+            this.dispose();
+            loginForm.setVisible(true);
         });
+    }
+
+    private void performRegister() {
+        String name = nameField.getText();
+        String username = usernameField.getText();
+        String email = emailField.getText();
+        String phone = phoneField.getText();
+        String password = new String(passwordField.getPassword());
+        String confirmPassword = new String(confirmPasswordField.getPassword());
+
+        if (name.isEmpty() || username.isEmpty() || email.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Semua field (kecuali telepon) wajib diisi!", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (!password.equals(confirmPassword)) {
+            JOptionPane.showMessageDialog(this, "Password dan Konfirmasi Password tidak cocok!", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // TODO: Tambah validasi email format
+
+        boolean success = authController.register(name, username, password, email, phone);
+
+        if (success) {
+            JOptionPane.showMessageDialog(this, "Registrasi Berhasil! Silakan login.", "Sukses", JOptionPane.INFORMATION_MESSAGE);
+            this.dispose();
+            loginForm.setVisible(true);
+        } else {
+            JOptionPane.showMessageDialog(this, "Registrasi Gagal! Username atau Email mungkin sudah terdaftar.", "Registrasi Gagal", JOptionPane.ERROR_MESSAGE);
+        }
     }
 }

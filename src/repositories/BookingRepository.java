@@ -2,75 +2,153 @@ package repositories;
 
 import config.DatabaseConnection;
 import models.Booking;
-
+import models.Schedule;
 import java.sql.*;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import javax.swing.JOptionPane;
 
 public class BookingRepository {
-    public void save(Booking booking) throws SQLException {
-        String sql = "INSERT INTO bookings (user_id, schedule_id, booking_date, status) VALUES (?, ?, ?, ?)";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            stmt.setInt(1, booking.getUserId());
-            stmt.setInt(2, booking.getScheduleId());
-            stmt.setTimestamp(3, Timestamp.valueOf(booking.getBookingDate()));
-            stmt.setString(4, booking.getStatus());
-            stmt.executeUpdate();
-            ResultSet rs = stmt.getGeneratedKeys();
-            if (rs.next()) {
-                booking.setBookingId(rs.getInt(1));
-            }
-        }
-    }
 
-    public void updateStatus(int bookingId, String status) throws SQLException {
-        String sql = "UPDATE bookings SET status = ? WHERE booking_id = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, status);
-            stmt.setInt(2, bookingId);
-            stmt.executeUpdate();
-        }
-    }
-
-    public List<Booking> findByUserId(int userId) throws SQLException {
+    public List<Booking> getAllBookings(boolean includeDeleted) {
         List<Booking> bookings = new ArrayList<>();
-        String sql = "SELECT * FROM bookings WHERE user_id = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, userId);
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                Booking booking = new Booking();
-                booking.setBookingId(rs.getInt("booking_id"));
-                booking.setUserId(rs.getInt("user_id"));
-                booking.setScheduleId(rs.getInt("schedule_id"));
-                booking.setBookingDate(rs.getTimestamp("booking_date").toLocalDateTime());
-                booking.setStatus(rs.getString("status"));
-                bookings.add(booking);
-            }
+        String sql = "SELECT b.*, u.name as user_name, f.name as field_name " +
+                     "FROM bookings b " +
+                     "JOIN users u ON b.user_id = u.user_id " +
+                     "JOIN fields f ON b.field_id = f.field_id";
+        if (!includeDeleted) {
+            sql += " WHERE b.is_deleted = FALSE";
         }
-        return bookings;
-    }
+        sql += " ORDER BY b.booking_date DESC, b.start_time";
 
-    public List<Booking> findAll() throws SQLException {
-        List<Booking> bookings = new ArrayList<>();
-        String sql = "SELECT * FROM bookings";
         try (Connection conn = DatabaseConnection.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
+
             while (rs.next()) {
-                Booking booking = new Booking();
-                booking.setBookingId(rs.getInt("booking_id"));
-                booking.setUserId(rs.getInt("user_id"));
-                booking.setScheduleId(rs.getInt("schedule_id"));
-                booking.setBookingDate(rs.getTimestamp("booking_date").toLocalDateTime());
-                booking.setStatus(rs.getString("status"));
-                bookings.add(booking);
+                bookings.add(mapResultSetToBooking(rs));
             }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Gagal mengambil data booking: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
         }
         return bookings;
+    }
+
+    public List<Booking> getBookingsByUserId(int userId, boolean includeDeleted) {
+        List<Booking> bookings = new ArrayList<>();
+        String sql = "SELECT b.*, u.name as user_name, f.name as field_name " +
+                     "FROM bookings b " +
+                     "JOIN users u ON b.user_id = u.user_id " +
+                     "JOIN fields f ON b.field_id = f.field_id " +
+                     "WHERE b.user_id = ?";
+        if (!includeDeleted) {
+            sql += " AND b.is_deleted = FALSE";
+        }
+        sql += " ORDER BY b.booking_date DESC, b.start_time";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, userId);
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                bookings.add(mapResultSetToBooking(rs));
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Gagal mengambil riwayat booking: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
+        }
+        return bookings;
+    }
+
+    public List<Time> getBookedTimes(int fieldId, Date bookingDate) {
+        List<Time> bookedTimes = new ArrayList<>();
+        String sql = "SELECT start_time FROM bookings " +
+                     "WHERE field_id = ? AND booking_date = ? " +
+                     "AND status IN ('Pending', 'Confirmed') AND is_deleted = FALSE";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, fieldId);
+            pstmt.setDate(2, bookingDate);
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                bookedTimes.add(rs.getTime("start_time"));
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Gagal mengambil waktu terbooking: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
+        }
+        return bookedTimes;
+    }
+
+    public boolean addBooking(Booking booking) {
+        String sql = "INSERT INTO bookings (user_id, field_id, booking_date, start_time, end_time, total_price, status) " +
+                     "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, booking.getUserId());
+            pstmt.setInt(2, booking.getFieldId());
+            pstmt.setDate(3, booking.getBookingDate());
+            pstmt.setTime(4, booking.getStartTime());
+            pstmt.setTime(5, booking.getEndTime());
+            pstmt.setBigDecimal(6, booking.getTotalPrice());
+            pstmt.setString(7, booking.getStatus());
+            return pstmt.executeUpdate() > 0;
+        } catch (SQLIntegrityConstraintViolationException e) {
+            JOptionPane.showMessageDialog(null, "Jadwal yang dipilih sudah dibooking orang lain.", "Booking Gagal", JOptionPane.WARNING_MESSAGE);
+            return false;
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Gagal menambah booking: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public boolean updateBookingStatus(int bookingId, String status) {
+        String sql = "UPDATE bookings SET status = ? WHERE booking_id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, status);
+            pstmt.setInt(2, bookingId);
+            return pstmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+             JOptionPane.showMessageDialog(null, "Gagal update status booking: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+     public boolean setBookingDeletedStatus(int bookingId, boolean isDeleted) {
+        String sql = "UPDATE bookings SET is_deleted = ? WHERE booking_id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setBoolean(1, isDeleted);
+            pstmt.setInt(2, bookingId);
+            return pstmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Gagal update status hapus booking: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+
+    private Booking mapResultSetToBooking(ResultSet rs) throws SQLException {
+        Booking booking = new Booking();
+        booking.setBookingId(rs.getInt("booking_id"));
+        booking.setUserId(rs.getInt("user_id"));
+        booking.setFieldId(rs.getInt("field_id"));
+        booking.setBookingDate(rs.getDate("booking_date"));
+        booking.setStartTime(rs.getTime("start_time"));
+        booking.setEndTime(rs.getTime("end_time"));
+        booking.setTotalPrice(rs.getBigDecimal("total_price"));
+        booking.setStatus(rs.getString("status"));
+        booking.setDeleted(rs.getBoolean("is_deleted"));
+        booking.setUserName(rs.getString("user_name"));
+        booking.setFieldName(rs.getString("field_name"));
+        return booking;
     }
 }
