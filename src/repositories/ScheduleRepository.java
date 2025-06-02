@@ -57,7 +57,7 @@ public class ScheduleRepository {
         return schedules;
     }
 
-     public Schedule getScheduleById(int scheduleId) {
+    public Schedule getScheduleById(int scheduleId) {
         String sql = "SELECT s.*, f.name as field_name FROM schedules s " +
                      "JOIN fields f ON s.field_id = f.field_id " +
                      "WHERE s.schedule_id = ?";
@@ -75,16 +75,15 @@ public class ScheduleRepository {
         return schedule;
     }
 
-
     public boolean addSchedule(Schedule schedule) {
-        // Add 'day_of_week' to the SQL INSERT statement
-        String sql = "INSERT INTO schedules (field_id, start_time, end_time, day_of_week) VALUES (?, ?, ?, ?)"; // <--- MODIFIED HERE
+        String sql = "INSERT INTO schedules (field_id, start_time, end_time, day_of_week, is_deleted) VALUES (?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, schedule.getFieldId());
             pstmt.setTime(2, schedule.getStartTime());
             pstmt.setTime(3, schedule.getEndTime());
-            pstmt.setString(4, schedule.getDayOfWeek()); // <--- ADD THIS LINE
+            pstmt.setString(4, schedule.getDayOfWeek());
+            pstmt.setBoolean(5, schedule.isDeleted());
             return pstmt.executeUpdate() > 0;
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(null, "Gagal menambah jadwal: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
@@ -94,15 +93,15 @@ public class ScheduleRepository {
     }
 
     public boolean updateSchedule(Schedule schedule) {
-        // Also update if you intend to allow editing day_of_week
-        String sql = "UPDATE schedules SET field_id = ?, start_time = ?, end_time = ?, day_of_week = ? WHERE schedule_id = ?"; // <--- MODIFIED HERE
+        String sql = "UPDATE schedules SET field_id = ?, start_time = ?, end_time = ?, day_of_week = ?, is_deleted = ? WHERE schedule_id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, schedule.getFieldId());
             pstmt.setTime(2, schedule.getStartTime());
             pstmt.setTime(3, schedule.getEndTime());
-            pstmt.setString(4, schedule.getDayOfWeek()); // <--- ADD THIS LINE
-            pstmt.setInt(5, schedule.getScheduleId()); // Index shifts
+            pstmt.setString(4, schedule.getDayOfWeek());
+            pstmt.setBoolean(5, schedule.isDeleted());
+            pstmt.setInt(6, schedule.getScheduleId());
             return pstmt.executeUpdate() > 0;
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(null, "Gagal update jadwal: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
@@ -125,18 +124,41 @@ public class ScheduleRepository {
         }
     }
 
-
     private Schedule mapResultSetToSchedule(ResultSet rs) throws SQLException {
         Schedule schedule = new Schedule();
         schedule.setScheduleId(rs.getInt("schedule_id"));
         schedule.setFieldId(rs.getInt("field_id"));
         schedule.setStartTime(rs.getTime("start_time"));
         schedule.setEndTime(rs.getTime("end_time"));
-        schedule.setDayOfWeek(rs.getString("day_of_week")); // <--- ADD THIS LINE
+        schedule.setDayOfWeek(rs.getString("day_of_week"));
         schedule.setDeleted(rs.getBoolean("is_deleted"));
-        if (hasColumn(rs, "field_name")) {
-            schedule.setFieldName(rs.getString("field_name"));
+        
+        // --- START MODIFIED ---
+        // Coba ambil field_name dengan lebih hati-hati
+        String fieldName = null;
+        try {
+            // Coba ambil berdasarkan alias "field_name"
+            fieldName = rs.getString("field_name");
+            // Jika null, coba ambil berdasarkan nama kolom asli "name" dari tabel fields
+            if (fieldName == null || fieldName.trim().isEmpty()) {
+                // Periksa apakah kolom 'name' dari tabel fields ada di ResultSet (jika tidak pakai alias)
+                if (hasColumn(rs, "name")) { // Cek kolom 'name'
+                    fieldName = rs.getString("name");
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Error saat mengambil field_name atau name dari ResultSet: " + e.getMessage());
         }
+        
+        if (fieldName != null && !fieldName.trim().isEmpty()) {
+            schedule.setFieldName(fieldName);
+        } else {
+            // Fallback jika nama lapangan tidak ditemukan atau kosong
+            schedule.setFieldName("Nama Lapangan Tidak Tersedia");
+            System.err.println("Warning: field_name untuk schedule ID " + schedule.getScheduleId() + " kosong atau null.");
+        }
+        // --- END MODIFIED ---
+        
         return schedule;
     }
 
@@ -145,7 +167,10 @@ public class ScheduleRepository {
         ResultSetMetaData rsmd = rs.getMetaData();
         int columns = rsmd.getColumnCount();
         for (int x = 1; x <= columns; x++) {
-            if (columnName.equals(rsmd.getColumnName(x))) {
+            // Menggunakan equalsIgnoreCase untuk perbandingan case-insensitive
+            // dan juga cek getColumnLabel untuk kompatibilitas alias
+            if (columnName.equalsIgnoreCase(rsmd.getColumnName(x)) || 
+                columnName.equalsIgnoreCase(rsmd.getColumnLabel(x))) {
                 return true;
             }
         }

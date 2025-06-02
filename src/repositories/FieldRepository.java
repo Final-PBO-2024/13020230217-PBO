@@ -31,7 +31,7 @@ public class FieldRepository {
         return fields;
     }
 
-     public Field getFieldById(int fieldId) {
+    public Field getFieldById(int fieldId) {
         String sql = "SELECT * FROM fields WHERE field_id = ?";
         Field field = null;
         try (Connection conn = DatabaseConnection.getConnection();
@@ -48,12 +48,16 @@ public class FieldRepository {
     }
 
     public boolean addField(Field field) {
-        String sql = "INSERT INTO fields (name, type, price_per_hour) VALUES (?, ?, ?)";
+        // --- START MODIFIED ---
+        // Menambahkan kolom is_deleted ke query INSERT
+        String sql = "INSERT INTO fields (name, type, price_per_hour, is_deleted) VALUES (?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, field.getName());
             pstmt.setString(2, field.getType());
             pstmt.setBigDecimal(3, field.getPricePerHour());
+            pstmt.setBoolean(4, field.isDeleted()); // Menggunakan nilai isDeleted dari objek Field
+            // --- END MODIFIED ---
             return pstmt.executeUpdate() > 0;
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(null, "Gagal menambah lapangan: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
@@ -63,13 +67,17 @@ public class FieldRepository {
     }
 
     public boolean updateField(Field field) {
-        String sql = "UPDATE fields SET name = ?, type = ?, price_per_hour = ? WHERE field_id = ?";
+        // --- START MODIFIED ---
+        // Menambahkan kolom is_deleted ke query UPDATE
+        String sql = "UPDATE fields SET name = ?, type = ?, price_per_hour = ?, is_deleted = ? WHERE field_id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, field.getName());
             pstmt.setString(2, field.getType());
             pstmt.setBigDecimal(3, field.getPricePerHour());
-            pstmt.setInt(4, field.getFieldId());
+            pstmt.setBoolean(4, field.isDeleted()); // Menggunakan nilai isDeleted dari objek Field
+            pstmt.setInt(5, field.getFieldId());
+            // --- END MODIFIED ---
             return pstmt.executeUpdate() > 0;
         } catch (SQLException e) {
              JOptionPane.showMessageDialog(null, "Gagal update lapangan: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);

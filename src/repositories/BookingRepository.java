@@ -2,7 +2,6 @@ package repositories;
 
 import config.DatabaseConnection;
 import models.Booking;
-import models.Schedule;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -62,6 +61,29 @@ public class BookingRepository {
         return bookings;
     }
 
+    // --- START MODIFIED ---
+    // Menambahkan metode getBookingById
+    public Booking getBookingById(int bookingId) {
+        String sql = "SELECT b.*, u.name as user_name, f.name as field_name " +
+                     "FROM bookings b " +
+                     "JOIN users u ON b.user_id = u.user_id " +
+                     "JOIN fields f ON b.field_id = f.field_id " +
+                     "WHERE b.booking_id = ?";
+        Booking booking = null;
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, bookingId);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                booking = mapResultSetToBooking(rs);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return booking;
+    }
+    // --- END MODIFIED ---
+
     public List<Time> getBookedTimes(int fieldId, Date bookingDate) {
         List<Time> bookedTimes = new ArrayList<>();
         String sql = "SELECT start_time FROM bookings " +
@@ -85,8 +107,10 @@ public class BookingRepository {
     }
 
     public boolean addBooking(Booking booking) {
-        String sql = "INSERT INTO bookings (user_id, field_id, booking_date, start_time, end_time, total_price, status) " +
-                     "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        // --- START MODIFIED ---
+        // Menambahkan kolom is_deleted ke query INSERT
+        String sql = "INSERT INTO bookings (user_id, field_id, booking_date, start_time, end_time, total_price, status, is_deleted) " +
+                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, booking.getUserId());
@@ -96,6 +120,8 @@ public class BookingRepository {
             pstmt.setTime(5, booking.getEndTime());
             pstmt.setBigDecimal(6, booking.getTotalPrice());
             pstmt.setString(7, booking.getStatus());
+            pstmt.setBoolean(8, booking.isDeleted()); // Menggunakan nilai isDeleted dari objek Booking
+            // --- END MODIFIED ---
             return pstmt.executeUpdate() > 0;
         } catch (SQLIntegrityConstraintViolationException e) {
             JOptionPane.showMessageDialog(null, "Jadwal yang dipilih sudah dibooking orang lain.", "Booking Gagal", JOptionPane.WARNING_MESSAGE);
@@ -134,7 +160,6 @@ public class BookingRepository {
             return false;
         }
     }
-
 
     private Booking mapResultSetToBooking(ResultSet rs) throws SQLException {
         Booking booking = new Booking();

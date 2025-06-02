@@ -3,9 +3,7 @@ package models;
 import java.sql.Time;
 import java.text.SimpleDateFormat;
 
-/**
- * Model untuk merepresentasikan data Jadwal.
- */
+
 public class Schedule {
     private int scheduleId;
     private int fieldId;
@@ -19,15 +17,18 @@ public class Schedule {
 
     public Schedule() {}
 
-    public Schedule(int scheduleId, int fieldId, Time startTime, Time endTime, boolean isDeleted) {
+    // --- START MODIFIED ---
+    // Memperbaiki konstruktor agar menyertakan dayOfWeek
+    public Schedule(int scheduleId, int fieldId, Time startTime, Time endTime, String dayOfWeek, boolean isDeleted) {
         this.scheduleId = scheduleId;
         this.fieldId = fieldId;
         this.startTime = startTime;
         this.endTime = endTime;
-        this.dayOfWeek = dayOfWeek;
+        this.dayOfWeek = dayOfWeek; // Sekarang dayOfWeek ada di parameter
         this.isDeleted = isDeleted;
     }
-
+    // --- END MODIFIED ---
+    
     // --- Getters and Setters ---
     public int getScheduleId() { return scheduleId; }
     public void setScheduleId(int scheduleId) { this.scheduleId = scheduleId; }
@@ -52,3 +53,4 @@ public class Schedule {
         return sdf.format(startTime) + " - " + sdf.format(endTime);
     }
 }
+

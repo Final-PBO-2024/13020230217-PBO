@@ -25,6 +25,22 @@ public class Booking {
 
     public Booking() {}
 
+    // --- START MODIFIED ---
+    // Menambahkan konstruktor lengkap untuk sinkronisasi
+    public Booking(int bookingId, int userId, int fieldId, Date bookingDate, Time startTime, Time endTime,
+                   BigDecimal totalPrice, String status, boolean isDeleted) {
+        this.bookingId = bookingId;
+        this.userId = userId;
+        this.fieldId = fieldId;
+        this.bookingDate = bookingDate;
+        this.startTime = startTime;
+        this.endTime = endTime;
+        this.totalPrice = totalPrice;
+        this.status = status;
+        this.isDeleted = isDeleted;
+    }
+    // --- END MODIFIED ---
+
     // --- Getters and Setters ---
     public int getBookingId() { return bookingId; }
     public void setBookingId(int bookingId) { this.bookingId = bookingId; }

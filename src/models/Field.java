@@ -2,9 +2,6 @@ package models;
 
 import java.math.BigDecimal;
 
-/**
- * Model untuk merepresentasikan data Lapangan Olahraga.
- */
 public class Field {
     private int fieldId;
     private String name;

@@ -24,9 +24,16 @@ public class BookingController {
         return bookingRepository.getAllBookings(includeDeleted);
     }
 
-     public List<Booking> getBookingsByUserId(int userId, boolean includeDeleted) {
+    public List<Booking> getBookingsByUserId(int userId, boolean includeDeleted) {
         return bookingRepository.getBookingsByUserId(userId, includeDeleted);
-     }
+    }
+
+    // --- START MODIFIED ---
+    // Menambahkan metode getBookingById
+    public Booking getBookingById(int bookingId) {
+        return bookingRepository.getBookingById(bookingId);
+    }
+    // --- END MODIFIED ---
 
     public List<Schedule> getAvailableSchedules(int fieldId, Date bookingDate) {
         // 1. Ambil semua jadwal aktif untuk lapangan tsb
@@ -56,7 +63,7 @@ public class BookingController {
     public boolean softDeleteBooking(int bookingId) {
         return bookingRepository.setBookingDeletedStatus(bookingId, true);
     }
-     public boolean restoreBooking(int bookingId) {
+    public boolean restoreBooking(int bookingId) {
         return bookingRepository.setBookingDeletedStatus(bookingId, false);
     }
 }

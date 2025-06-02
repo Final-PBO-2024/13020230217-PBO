@@ -16,9 +16,9 @@ public class ScheduleController {
         return scheduleRepository.getAllSchedules(includeDeleted);
     }
 
-     public List<Schedule> getSchedulesByFieldId(int fieldId, boolean includeDeleted) {
+    public List<Schedule> getSchedulesByFieldId(int fieldId, boolean includeDeleted) {
         return scheduleRepository.getSchedulesByFieldId(fieldId, includeDeleted);
-     }
+    }
 
     public Schedule getScheduleById(int scheduleId) {
         return scheduleRepository.getScheduleById(scheduleId);
